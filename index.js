@@ -4,7 +4,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
-const FormData = require('form-data');
+
 const csv = require('csv-parser');
 const juice = require('juice');
 const nodemailer = require('nodemailer');
