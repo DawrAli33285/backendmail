@@ -91,8 +91,7 @@ app.post('/api/send-html-template', htmlUpload.single('htmlTemplate'), async (re
     const { subject } = req.body; // Get email subject from request body
 
     // Read the HTML file
-    // let htmlContent = fs.readFileSync(filePath, 'utf8');
-  let htmlContent = req.file.buffer.toString('utf8');
+    let htmlContent = fs.readFileSync(filePath, 'utf8');
 
     // Process HTML to make it email client compatible
     htmlContent = createEmailTemplate(htmlContent);
