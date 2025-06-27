@@ -87,20 +87,23 @@ app.post('/api/send-html-template', htmlUpload.single('htmlTemplate'), async (re
       return res.status(400).json({ error: 'No HTML file uploaded' });
     }
 
-    const filePath = req.file.path;
-    const { subject } = req.body; // Get email subject from request body
-
-    // Read the HTML file
-    let htmlContent = fs.readFileSync(filePath, 'utf8');
+    // Use buffer instead of file path
+    let htmlContent;
+    if (req.file.buffer) {
+      htmlContent = req.file.buffer.toString('utf8');
+    } else if (req.file.path) {
+      htmlContent = fs.readFileSync(req.file.path, 'utf8');
+    } else {
+      return res.status(400).json({ error: 'Invalid file upload' });
+    }
 
     // Process HTML to make it email client compatible
     htmlContent = createEmailTemplate(htmlContent);
 
-    // Get contacts and send emails
+    // Rest of your code remains the same...
     const contacts = await contactmodel.find({});
     
     if (contacts.length === 0) {
-      fs.unlinkSync(filePath);
       return res.status(400).json({ 
         error: 'No contacts found in database. Please upload contacts first.' 
       });
@@ -108,7 +111,6 @@ app.post('/api/send-html-template', htmlUpload.single('htmlTemplate'), async (re
 
     const transporter = createEmailTransporter();
     
-    // Send emails sequentially with delay
     let successCount = 0;
     let failedCount = 0;
     const failedEmails = [];
@@ -117,16 +119,13 @@ app.post('/api/send-html-template', htmlUpload.single('htmlTemplate'), async (re
       try {
         await sendEmail(transporter, contact.email, htmlContent, subject || 'Your Document');
         successCount++;
-        await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay
+        await new Promise(resolve => setTimeout(resolve, 200));
       } catch (emailError) {
         console.error(`Failed to send to ${contact.email}:`, emailError.message);
         failedCount++;
         failedEmails.push(contact.email);
       }
     }
-
-    // Clean up uploaded file
-    fs.unlinkSync(filePath);
 
     return res.json({
       success: true,
@@ -135,14 +134,11 @@ app.post('/api/send-html-template', htmlUpload.single('htmlTemplate'), async (re
       successCount,
       failedCount,
       failedEmails: failedEmails.length > 0 ? failedEmails : undefined,
-      sampleHtml: htmlContent.substring(0, 500) + '...' // Return sample for preview
+      sampleHtml: htmlContent.substring(0, 500) + '...'
     });
 
   } catch (error) {
     console.error('HTML email sending error:', error);
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
     res.status(500).json({ 
       error: 'Failed to send HTML emails: ' + error.message 
     });
